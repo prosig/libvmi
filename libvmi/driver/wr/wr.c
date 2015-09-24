@@ -22,6 +22,7 @@ enum request_type {
     SK_TYPE_READ,
     SK_TYPE_WRITE,
     SK_TYPE_IDREQ,
+    SK_TYPE_VCPU,
 };
 
 
@@ -31,6 +32,37 @@ struct request {
     uint64_t length;    // number of bytes to read OR write
 } __attribute__((packed));
 
+struct wr_vcpu {
+    uint64_t rax;
+    uint64_t rbx;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t rsp;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rip;
+    uint64_t rflags;
+    uint64_t cr0;
+    uint64_t cr2;
+    uint64_t cr3;
+    uint64_t cr4;
+    uint64_t dr0;
+    uint64_t dr1;
+    uint64_t dr2;
+    uint64_t dr3;
+    uint64_t dr6;
+    uint64_t dr7;
+    uint64_t msr_efer;
+} __attribute__((packed));
 
 status_t
 wr_test(
@@ -223,14 +255,16 @@ wr_get_name(
     char *tmpname = NULL;
     wr_instance_t *wr = wr_get_instance(vmi);
 
-    tmpname = malloc(42);
+    tmpname = safe_malloc(42);
     if (tmpname == NULL) {
         return VMI_FAILURE;
     }
 
+    memset((void *)&req, 0, sizeof(struct request));
+
     req.type = SK_TYPE_IDREQ;
     req.address = 0;
-    req.length = 0;
+    req.length = 42;
 
     nbytes = write(wr->socket_fd, &req, sizeof(struct request));
     if (nbytes <= 0) {
@@ -287,3 +321,135 @@ wr_read_page(
     addr_t paddr = page << vmi->page_shift;
     return memory_cache_insert(vmi, paddr);
 }
+
+status_t
+wr_get_vcpureg(
+    vmi_instance_t vmi,
+    reg_t *value,
+    registers_t reg,
+    unsigned long vcpu_id)
+{
+    status_t ret;
+    int nbytes;
+    struct wr_vcpu vcpu = {0};
+    struct request req = {0};
+    wr_instance_t *wr = wr_get_instance(vmi);
+
+    ret = VMI_SUCCESS;
+
+    dbprint(VMI_DEBUG_WR, "--wr: wr_get_vcpureg - reg=%d.\n", reg);
+
+    req.type = SK_TYPE_VCPU;
+    req.address = 0;
+    req.length = sizeof(struct wr_vcpu);
+
+    nbytes = write(wr->socket_fd, &req, sizeof(struct request));
+    if (nbytes <= 0) {
+        ret = VMI_FAILURE;
+        goto exit;
+    }
+
+    nbytes = read(wr->socket_fd, &vcpu, sizeof(struct wr_vcpu));
+    if (nbytes <= 0) {
+        ret = VMI_FAILURE;
+        goto exit;
+    }
+
+    switch(reg) {
+    case RAX:
+        *value = vcpu.rax;
+        break;
+    case RBX:
+        *value = vcpu.rbx;
+        break;
+    case RCX:
+        *value = vcpu.rcx;
+        break;
+    case RDX:
+        *value = vcpu.rdx;
+        break;
+    case RBP:
+        *value = vcpu.rbp;
+        break;
+    case RSI:
+        *value = vcpu.rsi;
+        break;
+    case RDI:
+        *value = vcpu.rdi;
+        break;
+    case RSP:
+        *value = vcpu.rsp;
+        break;
+    case R8:
+        *value = vcpu.r8;
+        break;
+    case R9:
+        *value = vcpu.r9;
+        break;
+    case R10:
+        *value = vcpu.r10;
+        break;
+    case R11:
+        *value = vcpu.r11;
+        break;
+    case R12:
+        *value = vcpu.r12;
+        break;
+    case R13:
+        *value = vcpu.r13;
+        break;
+    case R14:
+        *value = vcpu.r14;
+        break;
+    case R15:
+        *value = vcpu.r15;
+        break;
+    case RIP:
+        *value = vcpu.rip;
+        break;
+    case RFLAGS:
+        *value = vcpu.rflags;
+        break;
+    case CR0:
+        *value = vcpu.cr0;
+        break;
+    case CR2:
+        *value = vcpu.cr2;
+        break;
+    case CR3:
+        *value = vcpu.cr3;
+        break;
+    case CR4:
+        *value = vcpu.cr4;
+        break;
+    case DR0:
+        *value = vcpu.dr0;
+        break;
+    case DR1:
+        *value = vcpu.dr1;
+        break;
+    case DR2:
+        *value = vcpu.dr2;
+        break;
+    case DR3:
+        *value = vcpu.dr3;
+        break;
+    case DR6:
+        *value = vcpu.dr6;
+        break;
+    case DR7:
+        *value = vcpu.dr7;
+        break;
+    case MSR_EFER:
+        *value = vcpu.msr_efer;
+        break;
+    default:
+        ret = VMI_FAILURE;
+        break;
+    }
+
+exit:
+    return ret;
+}
+
+
