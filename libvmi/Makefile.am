@@ -43,6 +43,9 @@ c_sources   += shm.c
 endif
 
 drivers =
+drivers		+= driver/wr/wr.h \
+			   driver/wr/wr_private.h \
+			   driver/wr/wr.c
 if HAVE_FILE
 drivers     += driver/file/file.h \
                driver/file/file_private.h \

@@ -43,6 +43,10 @@
 #include "driver/kvm/kvm.h"
 #endif
 
+#if ENABLE_WR == 1
+#include "driver/wr/wr.h"
+#endif
+
 status_t driver_init_mode(vmi_instance_t vmi, uint64_t domainid, const char *name)
 {
     unsigned long count = 0;
@@ -66,6 +70,13 @@ status_t driver_init_mode(vmi_instance_t vmi, uint64_t domainid, const char *nam
     if (VMI_SUCCESS == file_test(domainid, name)) {
         dbprint(VMI_DEBUG_DRIVER, "--found file\n");
         vmi->mode = VMI_FILE;
+        count++;
+    }
+#endif
+#if ENABLE_WR == 1
+    if (VMI_SUCCESS == wr_test(domainid, name)) {
+        dbprint(VMI_DEBUG_DRIVER, "--found file\n");
+        vmi->mode = VMI_WR;
         count++;
     }
 #endif
@@ -112,6 +123,11 @@ status_t driver_init(vmi_instance_t vmi)
 #if ENABLE_FILE == 1
     case VMI_FILE:
         rc = driver_file_setup(vmi);
+        break;
+#endif
+#if ENABLE_WR == 1
+    case VMI_WR:
+        rc = driver_wr_setup(vmi);
         break;
 #endif
     };

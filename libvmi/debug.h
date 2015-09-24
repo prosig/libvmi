@@ -48,11 +48,12 @@ typedef enum {
     VMI_DEBUG_WRITE    = (1 << 14),
     VMI_DEBUG_DRIVER   = (1 << 15),
     VMI_DEBUG_PEPARSE  = (1 << 16),
+    VMI_DEBUG_WR       = (1 << 17),
 
     __VMI_DEBUG_ALL    = ~(0ULL)
 } vmi_debug_flag_t;
 
 /* uncomment this and recompile to enable debug output */
-//#define VMI_DEBUG __VMI_DEBUG_ALL
+#define VMI_DEBUG __VMI_DEBUG_ALL
 
 #endif

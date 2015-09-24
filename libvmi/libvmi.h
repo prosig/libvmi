@@ -59,6 +59,8 @@ typedef uint32_t vmi_mode_t;
 
 #define VMI_FILE (1 << 3)  /**< libvmi is viewing a file on disk */
 
+#define VMI_WR   (1 << 4)  /**< libvmi is monitoring a WR VM */
+
 #define VMI_INIT_PARTIAL  (1 << 16) /**< init enough to view physical addresses */
 
 #define VMI_INIT_COMPLETE (1 << 17) /**< full initialization */
