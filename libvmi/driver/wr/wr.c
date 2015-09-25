@@ -251,16 +251,18 @@ wr_get_name(
     char **name)
 {
     int nbytes;
-    struct request req;
+    struct request req = {0};
     char *tmpname = NULL;
     wr_instance_t *wr = wr_get_instance(vmi);
+
+    dbprint(VMI_DEBUG_WR, "--wr: wr_get_name.\n");
 
     tmpname = safe_malloc(42);
     if (tmpname == NULL) {
         return VMI_FAILURE;
     }
 
-    memset((void *)&req, 0, sizeof(struct request));
+    memset((void *)tmpname, 0, 42);
 
     req.type = SK_TYPE_IDREQ;
     req.address = 0;
@@ -276,16 +278,18 @@ wr_get_name(
         goto error_exit;
     }
 
+    dbprint(VMI_DEBUG_WR, "--wr: wr_get_name name=%s.\n", tmpname);
+
     *name = strdup(tmpname);
 
-    if (name != NULL) {
+    if (tmpname != NULL) {
         free(tmpname);
     }
 
     return VMI_SUCCESS;
 
 error_exit:
-    if (name != NULL) {
+    if (tmpname != NULL) {
         free(tmpname);
     }
 
@@ -452,4 +456,9 @@ exit:
     return ret;
 }
 
-
+int
+wr_is_pv(
+    vmi_instance_t vmi)
+{
+    return 0;
+}
