@@ -89,7 +89,7 @@ init_socket(
 
     address.sin_family = AF_INET;
     address.sin_port = htons(WR_SK_INET_PORT);
-    address.sin_addr.s_addr = inet_addr("127.0.0.1"); //inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
+    address.sin_addr.s_addr = inet_addr("192.168.1.2"/*"127.0.0.1"*/); //inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
 
     if ((ret = connect(socket_fd, (struct sockaddr *)&address, sizeof(address))) != 0) {
         dbprint(VMI_DEBUG_WR, "--wr: connect() failed: ret=%d\n", ret);
@@ -128,31 +128,82 @@ wr_get_memory(
     char *buf = safe_malloc(length + 1);
     struct request req;
     int nbytes = 0;
+    int ret = 0;
     wr_instance_t *wr = wr_get_instance(vmi);
 
     /**
      * TODO: must be implemented to acquire memory from guest
      */
 
+    memset((void *)&req, 0, sizeof(struct request));
+
     req.type = SK_TYPE_READ;
     req.address = (uint64_t) paddr;
     req.length = (uint64_t) length + 1;
 
     // request data
+    dbprint(VMI_DEBUG_WR, "--wr: get_memory - sizeof(struct request) = %d\n",
+            sizeof(struct request));
     dbprint(VMI_DEBUG_WR, "--wr: get_memory - requesting data.\n");
     nbytes = write(wr->socket_fd, &req, sizeof(struct request));
     if (nbytes != sizeof(struct request)) {
         goto error_exit;
     }
 
+    /**
+     * We _really_ need two sockets...
+     */
+    //sleep(1);
+    // for (int i=0; i<1000000; i++)
+    //     for (int j=0; j<1000000; j++);
+    //         for (int k=0; k<1000000; k++);
+
     // get the requested data from the wr
-    dbprint(VMI_DEBUG_WR, "--wr: get_memory - reading data (size=%d).\n", (length+1));
-    nbytes = read(wr->socket_fd, buf, length + 1);
-    dbprint(VMI_DEBUG_WR, "--wr: get_memory - read %d bytes.\n", nbytes);
-    if (nbytes != (length + 1)) {
-        goto error_exit;
+    dbprint(VMI_DEBUG_WR, "--wr: get_memory - reading data @0x%llx (size=%d).\n", paddr, (length+1));
+
+    nbytes = 0;
+    while (nbytes < (length + 1)) {
+        dbprint(VMI_DEBUG_WR, "--wr: in read loop -- ret=%d\n", nbytes);
+        ret = read(wr->socket_fd, buf+nbytes, length + 1);
+        if (ret < 0) {
+            nbytes = ret;
+            break;
+        }
+
+        nbytes += ret;
     }
 
+    dbprint(VMI_DEBUG_WR, "--wr: get_memory - read %d bytes.\n", nbytes);
+    if (nbytes != (length + 1)) {
+
+        /**
+         * TODO: HAAACK -.-
+         */
+        if (nbytes > (length + 1)) {
+            goto cont;
+        }
+
+        dbprint(VMI_DEBUG_WR, "[  0] ");
+        for (int i=0; i<nbytes; i++) {
+            if (i%10 == 0 && i>0) {
+                dbprint(VMI_DEBUG_WR, "\n");
+                dbprint(VMI_DEBUG_WR, "[% 3d] ", i);
+            }
+            dbprint(VMI_DEBUG_WR, "0x%02x ", buf[i]);
+        }
+#if 0
+        nbytes = read(wr->socket_fd, buf, length + 1);
+        if (nbytes != (length + 1)) {
+            dbprint(VMI_DEBUG_WR, "\n");
+            goto error_exit;
+        } else {
+            goto cont;
+        }
+#endif
+        dbprint(VMI_DEBUG_WR, "\n");
+        goto error_exit;
+    }
+cont:
     // the last byte represents the status of the operation - if the last byte
     // in the buffer is set, everything is fine.
     if (buf[length]) {
@@ -266,19 +317,25 @@ wr_get_name(
 
     req.type = SK_TYPE_IDREQ;
     req.address = 0;
-    req.length = 42;
+    req.length = 10; // 42;
 
+/* TEST */
+    strncpy((void *)tmpname, "wR-Linux", 9);
+/* TEST END */
+
+#if 0
     nbytes = write(wr->socket_fd, &req, sizeof(struct request));
     if (nbytes <= 0) {
         goto error_exit;
     }
 
-    nbytes = read(wr->socket_fd, tmpname, 42);
+    nbytes = read(wr->socket_fd, tmpname, /*42*/9);
     if (nbytes <= 0) {
         goto error_exit;
     }
 
     dbprint(VMI_DEBUG_WR, "--wr: wr_get_name name=%s.\n", tmpname);
+#endif
 
     *name = strdup(tmpname);
 
@@ -348,13 +405,13 @@ wr_get_vcpureg(
     req.length = sizeof(struct wr_vcpu);
 
     nbytes = write(wr->socket_fd, &req, sizeof(struct request));
-    if (nbytes <= 0) {
+    if (nbytes != sizeof(struct request)/*<= 0*/) {
         ret = VMI_FAILURE;
         goto exit;
     }
 
     nbytes = read(wr->socket_fd, &vcpu, sizeof(struct wr_vcpu));
-    if (nbytes <= 0) {
+    if (nbytes != sizeof(struct wr_vcpu) /*<= 0*/) {
         ret = VMI_FAILURE;
         goto exit;
     }
