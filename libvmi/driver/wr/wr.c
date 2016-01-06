@@ -23,6 +23,8 @@ enum request_type {
     SK_TYPE_WRITE,
     SK_TYPE_IDREQ,
     SK_TYPE_VCPU,
+    SK_TYPE_PAUSE,
+    SK_TYPE_CONT,
 };
 
 
@@ -89,7 +91,7 @@ init_socket(
 
     address.sin_family = AF_INET;
     address.sin_port = htons(WR_SK_INET_PORT);
-    address.sin_addr.s_addr = inet_addr("192.168.1.2"/*"127.0.0.1"*/); //inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
+    address.sin_addr.s_addr = inet_addr("192.168.1.10"/*"127.0.0.1"*/); //inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
 
     if ((ret = connect(socket_fd, (struct sockaddr *)&address, sizeof(address))) != 0) {
         dbprint(VMI_DEBUG_WR, "--wr: connect() failed: ret=%d\n", ret);
@@ -226,6 +228,81 @@ wr_release_memory(
     if (memory) {
         free(memory);
     }
+}
+
+status_t
+wr_write(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    uint32_t length)
+{
+    int nbytes;
+    int ret;
+    uint8_t status;
+    struct request req;
+    wr_instance_t *wr = wr_get_instance(vmi);
+
+    memset((void *)&req, 0, sizeof(struct request));
+
+    req.type = SK_TYPE_WRITE;
+    req.address = (uint64_t) paddr;
+    req.length = (uint64_t) length;
+
+    nbytes = write(wr->socket_fd, &req, sizeof(struct request));
+    if (nbytes != sizeof(struct request)) {
+        goto error_exit;
+    }
+
+    nbytes = 0;
+    while (nbytes < (length)) {
+        dbprint(VMI_DEBUG_WR, "--wr: in write loop -- ret=%d\n", nbytes);
+        ret = write(wr->socket_fd, buf+nbytes, (length-nbytes));
+        if (ret < 0) {
+            nbytes = ret;
+            break;
+        }
+
+        nbytes += ret;
+    }
+
+    read(wr->socket_fd, &status, 1);
+    if (status == 0) {
+        goto error_exit;
+    }
+
+    return VMI_SUCCESS;
+
+error_exit:
+    return VMI_FAILURE;
+}
+
+status_t
+wr_pause_vm(
+    vmi_instance_t vmi)
+{
+    wr_instance_t *wr = wr_get_instance(vmi);
+    struct request req;
+
+    req.type = SK_TYPE_PAUSE;
+    req.address = 0;
+    req.length = 0;
+
+    write(wr->socket_fd, &req, sizeof(struct request));
+}
+
+status_t
+wr_resume_vm(
+    vmi_instance_t vmi)
+{
+    wr_instance_t *wr = wr_get_instance(vmi);
+    struct request req;
+
+    req.type = SK_TYPE_CONT;
+    req.address = 0;
+    req.length = 0;
+
+    write(wr->socket_fd, &req, sizeof(struct request));
 }
 
 status_t

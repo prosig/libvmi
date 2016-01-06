@@ -25,12 +25,21 @@ status_t wr_get_memsize(
 void *wr_read_page(
     vmi_instance_t vmi,
     addr_t page);
+status_t wr_write(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    uint32_t length);
 status_t wr_get_vcpureg(
     vmi_instance_t vmi,
     reg_t *value,
     registers_t reg,
     unsigned long vcpu);
 int wr_is_pv(
+    vmi_instance_t vmi);
+status_t wr_pause_vm(
+    vmi_instance_t vmi);
+status_t wr_resume_vm(
     vmi_instance_t vmi);
 
 static inline status_t
@@ -48,8 +57,11 @@ driver_wr_setup(vmi_instance_t vmi)
     driver.set_name_ptr = &wr_set_name;
     driver.get_memsize_ptr = &wr_get_memsize;
     driver.read_page_ptr = &wr_read_page;
+    driver.write_ptr = &wr_write;
     driver.get_vcpureg_ptr = &wr_get_vcpureg;
     driver.is_pv_ptr = &wr_is_pv;
+    driver.pause_vm_ptr = &wr_pause_vm;
+    driver.resume_vm_ptr = &wr_resume_vm;
 
     vmi->driver = driver;
     return VMI_SUCCESS;
