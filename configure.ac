@@ -90,6 +90,13 @@ AC_ARG_ENABLE([kvm],
       [enable_kvm=yes])
 AM_CONDITIONAL([KVM], [test x"$enable_kvm" = xyes])
 
+AC_ARG_ENABLE([wr],
+      [AS_HELP_STRING([--disable-wr],
+         [Support memory introspection with live WhiteRabbit VMs (default is yes)])],
+      [enable_wr=$enableval],
+      [enable_wr=yes])
+AM_CONDITIONAL([WR], [test x"$enable_wr" = xyes])
+
 AC_ARG_ENABLE([shm_snapshot],
       [AS_HELP_STRING([--disable-shm-snapshot],
          [Support shm-snapshot with KVM VMs (Xen is pending) (default is no)])],
@@ -214,10 +221,10 @@ xen_event_space=' '
                         AC_DEFINE([HAVE_XC_MEM_ACCESS_ENABLE], [1], "xenctrl has xc_mem_access_enable")],
                     [])
 
-                AC_CHECK_DEFINE(XENCTRL_HAS_XC_INTERFACE, xenctrl.h) 
+                AC_CHECK_DEFINE(XENCTRL_HAS_XC_INTERFACE, xenctrl.h)
 
                 # MSR events are only available in Xen 4.3+
-                AC_CHECK_DEFINE(MEM_EVENT_REASON_MSR, xen/mem_event.h) 
+                AC_CHECK_DEFINE(MEM_EVENT_REASON_MSR, xen/mem_event.h)
 
                 AC_CHECK_TYPE(
                     [hvmmem_access_t],
@@ -241,7 +248,7 @@ xen_event_space=' '
                     AC_MSG_WARN([XENCTRL_HAS_XC_INTERFACE undefined, event support disabled.])
                     have_xen_events='missing event support'
                     enable_xen_events='no'
-                [else] 
+                [else]
                     [if (test "$have_xc_mem_event_enable" = "yes" && test "$have_hvmmem_access_t" = "yes")]
                     [then]
                         have_xen_events='yes'
@@ -277,7 +284,7 @@ xen_event_space=' '
                             AC_MSG_WARN([Xen event support missing.])
                             have_xen_events='missing event support'
                             enable_xen_events='no'
-                        [fi]    
+                        [fi]
                     [fi]
                 [fi]
             [fi]
@@ -312,6 +319,17 @@ kvm_space='      '
     [fi]
 [fi]
 AM_CONDITIONAL([HAVE_KVM], [test x"$have_kvm" = "xyes"])
+
+have_wr='no'
+wr_space='    '
+[if test "$enable_wr" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_WR], [1], [Define to 1 to enable WhiteRabbit support.])
+    missing='no'
+    have_wr='yes'
+    wr_space='   '
+[fi]
+AM_CONDITIONAL([HAVE_WR], [test x"$have_wr" = "xyes"])
 
 have_shm_snapshot='no'
 shm_snapshot_space=' '
@@ -458,11 +476,12 @@ Feature      | Option                    | Reason
 Xen Support  | --enable-xen=$enable_xen$xen_space     | $have_xen
 Xen Events   | --enable-xen-events=$enable_xen_events$xen_event_space   | $have_xen_events
 KVM Support  | --enable-kvm=$enable_kvm$kvm_space     | $have_kvm
+WR Support   | --enable-wr=$enable_wr$wr_space        | $have_wr
 File Support | --enable-file=$enable_file$file_space    | $have_file
 Shm-snapshot | --enable-shm-snapshot=$enable_shm_snapshot$shm_snapshot_space | $have_shm_snapshot
 -------------|---------------------------|----------------------------
 
-OS           | Option                    
+OS           | Option
 -------------|--------------------------------------------------------
 Windows      | --enable-windows=$enable_windows
 Linux        | --enable-linux=$enable_linux
@@ -476,7 +495,7 @@ VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space  | $have_vmifs
 Extra features
 ----------------------------------------------------------------------
 Support of Rekall profiles: $have_jansson
- 
+
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.
 ])
